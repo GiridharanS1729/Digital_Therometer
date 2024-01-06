@@ -1,0 +1,150 @@
+C51 COMPILER V9.60.7.0   MAIN_FILE                                                         01/06/2024 23:43:36 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE MAIN_FILE
+OBJECT MODULE PLACED IN .\Objects\main File.obj
+COMPILER INVOKED BY: E:\keil\mainfiles\C51\BIN\C51.EXE main File.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\L
+                    -istings\main File.lst) TABS(2) OBJECT(.\Objects\main File.obj)
+
+line level    source
+
+   1          #include <reg51.h>
+   2          #define input P1
+   3          double newtemp,pass1,pass2,T;//variables used
+   4          //LCD
+   5          sbit rs = P3^0; //register select pin
+   6          sbit rw = P3^1; //read write pin
+   7          sbit e = P3^2; //enable pin
+   8          //ADC
+   9          sbit rd=P3^7; //defines rd pin of ADC use for reading purposes
+  10          sbit wr=P3^6; // define wr pin of ADC use for writing purposes
+  11          sbit intr=P3^4; //defines intr pin use for sending interrupts from microcontroller
+  12          void delay(unsigned int time) //Function to provide time delay in msec.
+  13          {
+  14   1      int i,j ;
+  15   1      for(i=0;i<time;i++)
+  16   1      for(j=0;j<1275;j++);
+  17   1      }
+  18          double adc() // Function to read the values from ADC and send to controller.
+  19          {
+  20   1      double temp;
+  21   1      rd=1;
+  22   1      wr=0;
+  23   1      delay(1);
+  24   1      wr=1;
+  25   1      while(intr==1);
+  26   1      {rd=0;
+  27   2      temp=input;
+  28   2      delay(3);}
+  29   1      return temp;
+  30   1      }
+  31          void lcdcmd(unsigned char item) //Function to send commands to LCD see
+  32          //command tables in LCD Link
+  33          {
+  34   1      P2 = item;
+  35   1      rs= 0;
+  36   1      rw=0;
+  37   1      e=1; //send to high to low pulse while writing
+  38   1      delay(1);
+  39   1      e=0;
+  40   1      }
+  41          void lcddata(double item) //Function to send data to LCD
+  42          {
+  43   1      P2 = item;
+  44   1      rs= 1;
+  45   1      rw=0;
+  46   1      e=1; //send high to low pulse while writing
+  47   1      delay(1);
+  48   1      e=0;
+  49   1      }
+  50          void disp_temp(double num) //displays number on LCD
+  51          {
+  52   1      unsigned char UnitDigit = 0; //It will contain unit digit of number
+  53   1      unsigned char TenthDigit = 0; //It will contain 10th position digit of number
+  54   1      unsigned char HundDigit = 0; //It will contain 100th position digit of number
+C51 COMPILER V9.60.7.0   MAIN_FILE                                                         01/06/2024 23:43:36 PAGE 2   
+
+  55   1      unsigned char decimal=0; //It will contain the decimal position of number
+  56   1      int point;
+  57   1      point=num*10;
+  58   1      HundDigit=(num/100);
+  59   1      if( HundDigit != 0) // If it is zero, then don't display
+  60   1      lcddata(HundDigit+0x30); // Make Character of HundDigit and then display it on
+  61   1      TenthDigit = num - HundDigit*100; // Findout Tenth Digit
+  62   1      TenthDigit = TenthDigit/10;
+  63   1      if (HundDigit==0 &&TenthDigit==0){} // If it is zero, then don't display
+  64   1      else
+  65   1      lcddata(TenthDigit+0x30); // Make Char of TenthDigit and then display it on LCD
+  66   1      UnitDigit = num - HundDigit*100;
+  67   1      UnitDigit = UnitDigit - TenthDigit*10;
+  68   1      lcddata(UnitDigit+0x30); // Make Char of UnitDigit and then display it on LCD
+  69   1      lcddata('.');
+  70   1      decimal=(point%10);
+  71   1      lcddata (decimal+0x30); // Make Char of Decimal Digit and then display it on LCD
+  72   1      lcddata(' '); lcddata('C');
+  73   1      }
+  74          void read(){ // Displays "READING" while controller reads from ADC
+  75   1      lcdcmd(0x0E); //turn display ON for cursor blinking
+  76   1      lcdcmd(0x01); //clear screen
+  77   1      lcdcmd(0x06); //increment cursor
+  78   1      lcddata('R');lcddata('E');lcddata('A');lcddata('D');lcddata('I');lcddata('N');lcddata('G');
+  79   1      lcddata(' ');
+  80   1      }
+  81          void main()
+  82          {
+  83   1      P0=0x00; //intialize port 0 to low use while controller reads the
+  84   1      //temperature from
+  85   1      //ADC
+  86   1      read(); // show reading on LCD while controller reads from ADC
+  87   1      while(1){ // use for checking errors while reading the value from ADC
+  88   2      newtemp=adc(); //reads first value from ADC
+  89   2      delay(60); //waits 60 msec
+  90   2      pass1=adc(); // reads the Second value from ADC
+  91   2      delay(60); // waits 60 msec
+  92   2      if (newtemp==pass1){ //compare first and second value
+  93   3      break; // if first and second value is same breaks the loop
+  94   3      }
+  95   2      }
+  96   1      while(1){ //enters in the permanent loop
+  97   2      T=160; //set reference voltage acting multiplier factor for temperature accuration
+  98   2      newtemp=(((newtemp*T)/255)); //converts the temperature value according to
+  99   2      //reference adjusted in
+ 100   2      //decimal
+ 101   2      lcdcmd(0x0E); //turn display ON for cursor blinking
+ 102   2      lcdcmd(0x01); //clear screen
+ 103   2      lcdcmd(0x06); //increment
+ 104   2      disp_temp(newtemp); //show temperature
+ 105   2      delay(300); //waits 3sec before re-measure the value of temperature
+ 106   2      while(1){ // re-measure the value from ADC but this time double check
+ 107   3      newtemp=adc();
+ 108   3      delay(60);
+ 109   3      pass1=adc();
+ 110   3      delay(60);
+ 111   3      pass2=adc();
+ 112   3      if (newtemp==pass1)
+ 113   3      {
+ 114   4      if(pass1==pass2)
+ 115   4      {
+ 116   5      break;
+C51 COMPILER V9.60.7.0   MAIN_FILE                                                         01/06/2024 23:43:36 PAGE 3   
+
+ 117   5      }
+ 118   4      }
+ 119   3      }
+ 120   2      // end ADC while loop
+ 121   2      } // end while permanent loop
+ 122   1      } // end main loop
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    687    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     16      14
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
